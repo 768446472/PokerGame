@@ -43,6 +43,127 @@ PLAY_PILE_4 = 4
 PILE_COUNT = 5
 
 
+class TextButton:
+    """ Text-based button """
+
+    def __init__(self,
+                 center_x, center_y,
+                 width, height,
+                 text,
+                 font_size=18,
+                 font_face="Arial",
+                 face_color=arcade.color.LIGHT_GRAY,
+                 highlight_color=arcade.color.WHITE,
+                 shadow_color=arcade.color.GRAY,
+                 button_height=2):
+        self.center_x = center_x
+        self.center_y = center_y
+        self.width = width
+        self.height = height
+        self.text = text
+        self.font_size = font_size
+        self.font_face = font_face
+        self.pressed = False
+        self.face_color = face_color
+        self.highlight_color = highlight_color
+        self.shadow_color = shadow_color
+        self.button_height = button_height
+
+    def draw(self):
+        """ Draw the button """
+        arcade.draw_rectangle_filled(self.center_x, self.center_y, self.width,
+                                     self.height, self.face_color)
+
+        if not self.pressed:
+            color = self.shadow_color
+        else:
+            color = self.highlight_color
+
+        # Bottom horizontal
+        arcade.draw_line(self.center_x - self.width / 2, self.center_y - self.height / 2,
+                         self.center_x + self.width / 2, self.center_y - self.height / 2,
+                         color, self.button_height)
+
+        # Right vertical
+        arcade.draw_line(self.center_x + self.width / 2, self.center_y - self.height / 2,
+                         self.center_x + self.width / 2, self.center_y + self.height / 2,
+                         color, self.button_height)
+
+        if not self.pressed:
+            color = self.highlight_color
+        else:
+            color = self.shadow_color
+
+        # Top horizontal
+        arcade.draw_line(self.center_x - self.width / 2, self.center_y + self.height / 2,
+                         self.center_x + self.width / 2, self.center_y + self.height / 2,
+                         color, self.button_height)
+
+        # Left vertical
+        arcade.draw_line(self.center_x - self.width / 2, self.center_y - self.height / 2,
+                         self.center_x - self.width / 2, self.center_y + self.height / 2,
+                         color, self.button_height)
+
+        x = self.center_x
+        y = self.center_y
+        if not self.pressed:
+            x -= self.button_height
+            y += self.button_height
+
+        arcade.draw_text(self.text, x, y,
+                         arcade.color.BLACK, font_size=self.font_size,
+                         width=self.width, align="center",
+                         anchor_x="center", anchor_y="center")
+
+    def on_press(self):
+        self.pressed = True
+
+    def on_release(self):
+        self.pressed = False
+
+
+def check_mouse_press_for_buttons(x, y, button_list):
+    """ Given an x, y, see if we need to register any button clicks. """
+    for button in button_list:
+        if x > button.center_x + button.width / 2:
+            continue
+        if x < button.center_x - button.width / 2:
+            continue
+        if y > button.center_y + button.height / 2:
+            continue
+        if y < button.center_y - button.height / 2:
+            continue
+        button.on_press()
+
+
+def check_mouse_release_for_buttons(_x, _y, button_list):
+    """ If a mouse button has been released, see if we need to process
+        any release events. """
+    for button in button_list:
+        if button.pressed:
+            button.on_release()
+
+
+class StartTextButton(TextButton):
+    def __init__(self, center_x, center_y, action_function):
+        super().__init__(330, 180, 100, 40, "Start", 18, "Arial")
+        self.action_function = action_function
+
+    def on_release(self):
+        super().on_release()
+        self.action_function()
+
+
+class StopTextButton(TextButton):
+    def __init__(self, center_x, center_y, action_function):
+        super().__init__(330, 130, 100, 40, "Stop", 18, "Arial")
+        self.action_function = action_function
+
+    def on_release(self):
+        super().on_release()
+        self.action_function()
+
+
 class Card(arcade.Sprite):
     """ Card sprite """
     def __init__(self, suit, value, scale=1):
@@ -89,6 +210,8 @@ class MyGame(arcade.View):
         self.TOP_Y = self.window.height - MAT_HEIGHT / 2 - MAT_HEIGHT * VERTICAL_MARGIN_PERCENT
         self.MIDDLE_Y = self.TOP_Y - MAT_HEIGHT - MAT_HEIGHT * VERTICAL_MARGIN_PERCENT
         self.ui_manager = UIManager()
+        self.pause = False
+        self.button_list = None
 
     def setup(self):
         """ Set up the game here. Call this function to restart the game. """
@@ -99,6 +222,15 @@ class MyGame(arcade.View):
         self.view_bottom = 0
         self.view_left = 0
         self.view_right = 0
+
+        # Create our on-screen GUI buttons
+        self.button_list = []
+        # define button
+        play_button = StartTextButton(60, 570, self.resume_program)
+        self.button_list.append(play_button)
+        quit_button = StopTextButton(60, 515, self.pause_program)
+        self.button_list.append(quit_button)
+
         # create the mats, the cards go on
         self.pile_mat_list: arcade.SpriteList = arcade.SpriteList()
         # Create the mats for the bottom face down and face up piles
@@ -198,6 +330,9 @@ class MyGame(arcade.View):
         self.pile_mat_list.draw()
         # Draw the cards
         self.card_list.draw()
+        # Draw the buttons
+        for button in self.button_list:
+            button.draw()
         # Draw the player's name
         arcade.draw_text("Hole\ncards", 10 + self.view_left,
                          10 + self.view_bottom, arcade.csscolor.WHITE, 18)
@@ -237,15 +372,23 @@ class MyGame(arcade.View):
                 ]
                 # Put on top in drawing order
                 self.pull_to_top(self.held_cards[0])
+        check_mouse_press_for_buttons(x, y, self.button_list)
 
     def on_mouse_release(self, x: float, y: float, button: int,
                          modifiers: int):
-        # We are no longer holding cards
-        pass
+        check_mouse_release_for_buttons(x, y, self.button_list)
 
     def on_mouse_motion(self, x: float, y: float, dx: float, dy: float):
         """ User moves mouse """
         pass
+
+    def pause_program(self):
+        print('pause')
+        # self.pause = True
+
+    def resume_program(self):
+        print('resume')
+        # self.pause = False
 
 
 def main():
