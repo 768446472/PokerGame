@@ -39,7 +39,7 @@ def on_start(player_name, game_state, client_address, **kwargs):
     backend.server.dispatch_event("POKER",
                                   "ready",
                                   target_client=client_address)
-
+    print('Shuffle success, public card: %s' % public_card)
     return {
         "poker_data": {
             game_state.game_round: {
@@ -88,28 +88,36 @@ def on_bet(bet_ins, game_state, client_address, **kwargs):
 
 def on_flop(player_id: int, game_round: int, game_state, client_address,
             **kwargs):
-    print(player_id, game_round)
-    print(game_state.poker_data[game_round]['public_card'])
-    flop_card = game_state.poker_data[game_round]['public_card']
+    flop_card = game_state.poker_data[game_round]['public_card'][0:3]
+    print("handling flop_card request. sending %s " % flop_card)
     backend.server.dispatch_event("FLOP_FEEDBACK",
-                                  flop_card[0:3],
+                                  flop_card,
                                   target_client=client_address)
     return {}
 
 
-def on_turn(player_id: int, game_round: int, client_address, **kwargs):
-    print(player_id, game_round)
+def on_turn(player_id: int, game_round: int, game_state, client_address,
+            **kwargs):
+    turn_card = game_state.poker_data[game_round]['public_card'][3:4]
+    print("handling turn_card request. sending %s " % turn_card)
+    backend.server.dispatch_event("TURN_FEEDBACK",
+                                  turn_card,
+                                  target_client=client_address)
     return {}
 
 
-def on_river(player_id: int, game_round: int, client_address, **kwargs):
-    print(player_id, game_round)
+def on_river(player_id: int, game_round: int, game_state, client_address, **kwargs):
+    river_card = game_state.poker_data[game_round]['public_card'][4:5]
+    print("handling river_card request. sending %s " % river_card)
+    backend.server.dispatch_event("RIVER_FEEDBACK",
+                                  river_card,
+                                  target_client=client_address)
     return {}
 
 
 def on_newround(player_id: int, game_round: int, game_state, client_address,
                 **kwargs):
-    print(player_id, game_round)
+    print("newround start, now round %s player_id:%s game_round:%s" % (game_state.game_round, player_id, game_round))
     return {"game_round": game_state.game_round + 1}
 
 
