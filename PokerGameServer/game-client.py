@@ -43,14 +43,16 @@ class ChaseClient(Client):
         print('River Card:', msg)
 
     def main(self):
-        bet_ins = ['yanglin', '5']
+        bet_ins = ['yanglin', 'blind', '5']
         for i in range(5):
             try:
-                print('--------- round %s ,Total 5 round---------\n' % (i + 1))
-                username = "yanglin"
-                client.dispatch_event("JOIN", username)
+                print('\n--------- round %s ,Total 5 round---------' % (i + 1))
+                if self.player_id is None:
+                    username = input('input username: ')
+                    client.dispatch_event("JOIN", username)
                 time.sleep(2)
-                client.dispatch_event("START", username)
+                if self.player_id == 0:
+                    client.dispatch_event("START", username)
                 time.sleep(2)
                 client.dispatch_event("HOLECARD", self.player_id, self.game_round)
                 time.sleep(2)
@@ -69,8 +71,6 @@ class ChaseClient(Client):
             except(Exception):
                 print(Exception)
                 client.disconnect(shutdown_server=True)
-
-        input()
         client.disconnect(shutdown_server=True)
 
 
